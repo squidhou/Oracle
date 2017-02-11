@@ -1,0 +1,244 @@
+﻿数据库启动关闭：
+外部命令：
+直接以oracle用户登录系统就可以启动数据库
+
+内部命令：
+需要连接到数据库里面才能启动数据库
+
+外部命令：dbshut（关库）和dbstart（起库）
+
+[oracle@oradb ~]$ dbstart
+ORACLE_HOME_LISTNER is not SET, unable to auto-start Oracle Net Listener
+Usage: /u02/app/oracle/product/11.2.0/bin/dbstart ORACLE_HOME
+
+原因：监听没启动；语法不对
+思考：ORACLE_HOME指的是什么？
+
+[oracle@oradb ~]$ dbstart ORACLE_HOME
+Failed to auto-start Oracle Net Listener using ORACLE_HOME/bin/tnslsnr
+[oracle@oradb ~]$ ps -ef|grep ora_
+oracle    3529  3148  0 15:38 pts/0    00:00:00 grep ora_
+
+依然没有起来，原因是外部命令启库和关库的开关没有打开
+vim /etc/oratab
+ora10g:/u01/app/oracle/product/10.2.0:N
+ora11g:/u02/app/oracle/product/11.2.0:Y
+说明：
+以“:”分割，前后不要有空格；分三段；启库和关库都受该文件影响
+格式如下：
+$ORACLE_SID:$ORACLE_HOME:开关<N|Y>:
+
+[oracle@oradb ~]$ dbstart ORACLE_HOME
+Failed to auto-start Oracle Net Listener using ORACLE_HOME/bin/tnslsnr
+Processing Database instance "ora11g": log file /u02/app/oracle/product/11.2.0/startup.log
+
+[oracle@oradb ~]$ ps -ef|grep ora_
+
+[oracle@oradb ~]$ dbshut ORACLE_HOME
+
+注意：开关文件里打开后就可以使用dbshut和dbstart启停数据库了，但是依然会报错误：
+Failed to auto-start Oracle Net Listener using ORACLE_HOME/bin/tnslsnr
+
+原因：数据库的监听没有启动起来
+
+监听作用：客户端远程连接数据库
+数据库（监听未启动）—— 自己连接自己（应用app+数据库【同一台服务器】）
+数据库（监听已启动）—— 远程就可以连接（应用+数据库【服务器分开部署】）
+
+dbstart ——> 启动数据库+监听
+dbshut——> 关闭数据库+监听
+
+用法：
+$ dbstart $ORACLE_HOME
+或者
+dbstart /u02/app/oracle/product/11.2.0
+$ dbshut $ORACLE_HOME
+
+
+思考：如果开关文件被误删除怎么办？
+[oracle@oradb ~]$ rm -f /etc/oratab
+rm: cannot remove `/etc/oratab': Permission denied
+[oracle@oradb ~]$ exit
+logout
+[root@oradb ~]# rm -f /etc/oratab
+[root@oradb ~]# su - oracle
+[oracle@oradb ~]$ dbstart ORACLE_HOME
+Failed to auto-start Oracle Net Listener using ORACLE_HOME/bin/tnslsnr
+cat: /etc/oratab: No such file or directory
+cat: /etc/oratab: No such file or directory
+cat: /etc/oratab: No such file or directory
+cat: /etc/oratab: No such file or directory
+
+解决：重新创建一个开关文件
+[root@oradb ~]# touch /etc/oratab
+[root@oradb ~]# chown oracle.oinstall /etc/oratab
+[root@oradb ~]# su - oracle
+[oracle@oradb ~]$ vim /etc/oratab
+[oracle@oradb ~]$ cat /etc/oratab
+ora10g:/u01/app/oracle/product/10.2.0:N
+ora11g:/u02/app/oracle/product/11.2.0:Y
+
+[oracle@oradb ~]$ dbstart ORACLE_HOME
+Failed to auto-start Oracle Net Listener using ORACLE_HOME/bin/tnslsnr
+Processing Database instance "ora11g": log file /u02/app/oracle/product/11
+
+引入：
+/etc/oratab文件对dbca（数据库配置帮手）有影响；dbca会读取该文件里的内容
+1、dbca只能删除/etc/oratab文件里的ORACLE_SID的库，不存在不会删除（即使真的存在该库）
+2、如果/etc/oratab文件里多了一个库（实际没有该库），dbca再次创建时不能创建和oratab文件里ORACLE_SID相同的库
+
+总结：
+1、dbstart|dbshut命令功能：启动|停止 数据库+监听
+2、开关文件/etc/oratab决定是否可以使用dbstar|dbshut命令
+
+注意：10g dbstar 有个小bug
+
+[oracle@oradb ~]$ dbstart
+Failed to auto-start Oracle Net Listene using /ade/vikrkuma_new/oracle/bin/tnslsnr
+Processing Database instance "ora10g": log file /u01/app/oracle/product/10.2.0/startup.log
+
+[oracle@oradb ~]$ dbstart $ORACLE_HOME
+Failed to auto-start Oracle Net Listene using /ade/vikrkuma_new/oracle/bin/tnslsnr
+Processing Database instance "ora10g": log file /u01/app/oracle/product/10.2.0/startup.log
+
+修改dbstart脚本：
+[oracle@oradb ~]$ which dbstart
+/u01/app/oracle/product/10.2.0/bin/dbstart
+[oracle@oradb ~]$ vim /u01/app/oracle/product/10.2.0/bin/dbstart
+ 77 # Set this to bring up Oracle Net Listener
+ 78 #ORACLE_HOME_LISTNER=/ade/vikrkuma_new/oracle
+ 79 ORACLE_HOME_LISTNER=$ORACLE_HOME
+
+同样，dbshut脚本，不能停止监听
+
+[oracle@oradb ~]$ vim /u01/app/oracle/product/10.2.0/bin/dbshut
+添加如下内容：
+# The  this to bring down Oracle Net Listener
+ORACLE_HOME_LISTNER=$ORACLE_HOME
+if [ ! $ORACLE_HOME_LISTNER ] ; then
+  echo "ORACLE_HOME_LISTNER is not SET, unable to auto-stop Oracle Net Listener"
+else
+  LOG=$ORACLE_HOME_LISTNER/listener.log
+
+  # Stop Oracle Net Listener
+  if [ -f $ORACLE_HOME_LISTNER/bin/tnslsnr ] ; then
+    echo "$0: Stoping Oracle Net Listener" >> $LOG 2>&1
+    $ORACLE_HOME_LISTNER/bin/lsnrctl stop >> $LOG 2>&1 &
+  else
+    echo "Failed to auto-stop Oracle Net Listener using $ORACLE_HOME_LISTNER/bin/tnslsnr"
+  fi
+fi
+
+
+内部命令：
+[oracle@oradb ~]$ sqlplus
+
+SQL*Plus: Release 11.2.0.3.0 Production on Sat Feb 4 19:35:48 2017
+
+Copyright (c) 1982, 2011, Oracle.  All rights reserved.
+
+Enter user-name: 
+
+建库时的用户（数据库用户）：
+	sys（database）	——超级管理员
+	system（database） ——一般管理员
+	以上两个用户都可以对数据库进行维护操作，但是sys权限最高
+	sysman（em）
+	dbsnmp（em）
+	以上用户密码都是oracle
+	scott（实验用户）—— tiger
+
+[oracle@oradb ~]$ sqlplus
+
+SQL*Plus: Release 11.2.0.3.0 Production on Sat Feb 4 19:35:48 2017
+
+Copyright (c) 1982, 2011, Oracle.  All rights reserved.
+
+Enter user-name: sys
+Enter password:
+ERROR:
+ORA-01034: ORACLE not available
+ORA-27101: shared memory realm does not exist
+Linux-x86_64 Error: 2: No such file or directory
+Process ID: 0
+Session ID: 0 Serial number: 0
+Enter user-name:
+
+说明：如果直接输入用户名登录，sqlplus默认是普通用户；如果想要管理员登录那么需要表明身份，即“亮剑”【as sysdba】
+
+如下执行：
+
+
+Enter user-name: sys as sysdba
+Enter password: 
+Connected to an idle instance.
+或者
+Enter user-name:sys
+Enter password:oracle（密码）  as sysdba 【默认密码不显示】
+eg：
+Enter user-name: sys
+Enter password:
+Connected to an idle instance. 【已经连接到一个空闲数据库】
+
+SQL>
+sqlplus命令里提供了相关的起库/停库命令
+	starup
+	shut[down] immediate(建议) 体系结构讲
+ 	
+SQL> startup
+ORACLE instance started.
+
+Total System Global Area 1202556928 bytes
+Fixed Size		    2227824 bytes
+Variable Size		  721420688 bytes
+Database Buffers	  469762048 bytes
+Redo Buffers		    9146368 bytes
+????????
+????????
+SQL> 
+
+出现乱码解决：
+如果想用英文提示，修改环境变量
+NLS_LANG=AMERICAN_AMERICA.ZHS16GBK; export NLS_LANG
+如果想用中文提示，修改环境变量
+NLS_LANG="Simplified Chinese_china.ZHS16GBK";export NLS_LANG
+如果还有问题，再修改终端的字符集
+eg：
+Terminal—>Set Character Encoding[设置字符编码]—>Chinese Simplified(GBK)[选择中文简体]
+
+起库：
+SQL> startup
+ORACLE instance started.
+
+Total System Global Area 1202556928 bytes
+Fixed Size		    2227824 bytes
+Variable Size		  721420688 bytes
+Database Buffers	  469762048 bytes
+Redo Buffers		    9146368 bytes
+Database mounted.
+Database opened.
+
+关库：
+SQL> shutdown immediate;
+Database closed.
+Database dismounted.
+ORACLE instance shut down.
+
+说明：shutdown可以简写成shut，但是不建议，因为后面rman里也可以使用shutdown关库，rman里如果使用shut就会报错
+
+怎么通过sqlplus连接进去判断数据库有没有起来？
+sqlplus命令连接到数据库里后，如果提示
+：Connected to an idle instance.说明数据库没有启动；如果提示：Connected to:
+Oracle Database 11g Enterprise Edition Release 11.2.0.3.0 - 64bit Production
+With the Partitioning, OLAP, Data Mining and Real Application Testing options
+说明数据库已经起来
+
+
+
+
+
+
+
+
+
+
