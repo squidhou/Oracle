@@ -1,0 +1,375 @@
+﻿﻿sqlplus连接数据库方法【掌握】：
+1、sqlplus工具不需要额外安装，默认装完软件就有
+2、命令窗口
+
+方法1：交互式
+普通用户：
+$ sqlplus
+Enter user-name:scoot
+Enter password:tiger[不显示]
+$ 管理员：
+sqlplus
+Enter user-name:sys as sysdba
+Enter password:oracle[不显示]
+或者
+Enter user-name:sys
+Enter password:oracle[不显示] as sysdba
+
+方法2：
+[oracle@oradb ~]$ sqlplus scott
+Enter password:tiger【不显示】
+
+[oracle@oradb ~]$ sqlplus sys as sysdba
+Enter password:oracle[不显示]
+
+
+方法3：非交互式【密码明文不安全】
+普通用户：
+[oracle@oradb ~]$ sqlplus scott/tiger
+管理员：
+[oracle@oradb ~]$ sqlplus sys/oracle as sysdba
+
+方法4：
+[oracle@oradb ~]$ sqlplus /nolog
+SQL> connect scott/tiger
+Connected.
+或者
+SQL> conn scott
+Enter password: 
+Connected.
+
+[oracle@oradb ~]$ sqlplus /nolog
+SQL> conn sys/oracle as sysdba
+Connected.
+或者
+SQL> conn sys as sysdba
+Enter password: 
+Connected.
+
+思考：如果库里面没有的用户是否可以登录？
+[oracle@oradb ~]$ sqlplus abc/123
+ERROR:
+ORA-01017: 用户名/口令无效; 登录被拒绝
+
+但是，如果后面加一个as sysdba就可以登录了，也就是说，我可以不用账号密码就可以登录了
+[oracle@oradb ~]$ sqlplus abc/123 as sysdba 【只要不写关键字就行】
+Connected to:
+Oracle Database 11g Enterprise Edition Release 11.2.0.3.0 - 64bit Production
+With the Partitioning, OLAP, Data Mining and Real Application Testing options
+SQL> 
+
+[oracle@oradb ~]$ sqlplus / as sysdba 【没有账号密码】
+SQL*Plus: Release 11.2.0.3.0 Production on Sat Feb 4 22:02:32 2017
+Copyright (c) 1982, 2011, Oracle.  All rights reserved.
+Connected to:
+Oracle Database 11g Enterprise Edition Release 11.2.0.3.0 - 64bit Production
+With the Partitioning, OLAP, Data Mining and Real Application Testing options
+SQL> 
+
+以上登录是oracle的一种认证方式，操作系统认证；只要知道oracle用户的密码就可以直接以sys用户登录数据库而不需要密码；
+
+说明：
+Oracle对于普通账户和超级管理员（指sysdba和sysoper）的认证机制不一样，前者是通过数据字典，后者主要是通过操作系统验证和密码文件验证。因此一般提到操作系统认证或密码文件认证，针对的都是超级管理员的认证。
+
+
+操作系统认证：
+
+对于操作系统认证，只需要将该用户添加到dba（针对sysdba权限）或oper（针对sysoper权限）组中，
+就可以使用 "sqlplus  / as sysdba或者 sqlplus / as sysoper"方式登陆
+
+demo：
+useradd -G dba test
+
+能否使用操作系统身份认证，取决于$ORACLE_HOME/network/admin/sqlnet.ora中SQLNET.AUTHENTICATION_SERVICES的取值。
+
+      SQLNET.AUTHENTICATION_SERVICES = none | all | ntf(windows)
+      //sqlnet.authentication_services(认证服务)
+      none : 表示关闭操作系统认证，只能密码认证。
+      all : 操作系统认证和密码认证均可。[默认]
+      nts : 用于windows平台。
+
+
+密码文件认证：
+$ORACLE_HOME/dbs/orapw$SID文件
+
+这种方式在实际环境中较为普遍，利用的是orapwd工具创建密码文件。
+
+在密码文件认证中，有一个参数十分重要：remote_login_passwordfile，该参数有三个值，默认为exclusive
+
+none----不使用密码文件认证
+exclusive---需要密码文件认证 自己独占使用
+shared ---需要密码文件认证 不同实例dba用户可以共享密码文件
+
+密码文件的默认位置为:$ORACLE_HOME/dbs
+
+密码文件的查找顺序：orapw<sid> -->  orapw  --> Failure
+
+所以在创建密码文件时filename只能为orapw<sid>或者orapw
+
+
+补充：
+sysdba和sysoper权限区别：
+
+sysdba：拥有最高的系统权限，是管理oracle实例的，它的存在不依赖于整个数据库完全启动，只要实例启动了，他就已经存在，以sysdba身份登陆，装载数据库、打开数据库
+
+SQL>conn / as sysdba;
+SQL> show user;
+USER is "SYS"
+
+以SYSDBA登陆Oracle数据库时，有最大权限，可以启停数据库也可以访问V$对象视图等。
+
+sysoper：也是一种系统权限，只不过跟sysdba相比权限小一些
+
+SQL> conn / as sysoper
+Connected.
+SQL> show user
+USER is "PUBLIC"
+
+以sysoper登陆Oracle数据库时，可以启停数据库，备份恢复（完全恢复）数据库等，但是不可以访问V$对象视图，不能创建和删除数据库。
+
+
+sqlplus 工具使用：
+寻求帮助：
+SQL> help index   
+
+Enter Help [topic] for help.
+
+ @             COPY         PAUSE                    SHUTDOWN
+ @@            DEFINE       PRINT                    SPOOL
+ /             DEL          PROMPT                   SQLPLUS
+ ACCEPT        DESCRIBE     QUIT                     START
+ APPEND        DISCONNECT   RECOVER                  STARTUP
+ ARCHIVE LOG   EDIT         REMARK                   STORE
+ ATTRIBUTE     EXECUTE      REPFOOTER                TIMING
+ BREAK         EXIT         REPHEADER                TTITLE
+ BTITLE        GET          RESERVED WORDS (SQL)     UNDEFINE
+ CHANGE        HELP         RESERVED WORDS (PL/SQL)  VARIABLE
+ CLEAR         HOST         RUN                      WHENEVER OSERROR
+ COLUMN        INPUT        SAVE                     WHENEVER SQLERROR
+ COMPUTE       LIST         SET                      XQUERY
+ CONNECT       PASSWORD     SHOW
+
+一级一级找帮助：
+SQL> help set
+
+ SET
+ ---
+
+ Sets a system variable to alter the SQL*Plus environment settings
+ for your current session. For example, to:
+     -   set the display width for data
+     -   customize HTML formatting
+     -   enable or disable printing of column headings
+     -   set the number of lines per page
+
+ SET system_variable value
+
+
+
+SET PAGES[IZE] {14|n}   设置多少行一页
+SET LIN[ESIZE] {80|n}	设置终端宽度
+
+COL[UMN] [{column | expr} [option ...] ]
+col 列名 for a12 【字符或日期】
+col 列名 for 9999 【数字】用9占位
+注意：
+1、如果列的类型是数字，如果用a的话就会出现###
+2、设置列时如果太小也会出现##
+
+set feedback off|on  关闭查询末尾显示行号（去除尾巴）
+set head off|on  关闭显示列名（去除头部）
+set feedback off head off  可以一起设置
+
+以上设置都是临时的，退出重新登录就没有了，想要永久保存设置，需要修改文件：
+$ cd $ORACLE_HOME/sqlplus/admin
+$ vim glogin.sql
+
+set line 200 pages 200
+col ename for a7
+col empno for 9999
+col job for a9
+col mgr for 9999
+col sal for 99999
+col comm for 9999
+col deptno for 99
+
+说明：
+如果在文件中要设置列的输出显示，则要考虑到其他表有没有相同的列名不同的类型，否则就有可能出想输出##的提示
+
+l[ist] ：查看缓冲池里的sql语句（缓冲池只能保存最近的一条sql语句）
+/ [run]: 执行最近的一条sql语句 【运行缓冲池里的sql语句】
+说明：如果是个新会没有执行过任何sql语句，则没有缓冲
+SQL> l
+SP2-0223: No lines in SQL buffer.
+
+如果想保存多条sql语句，则要单独存储到文件：
+save  /path/xxx.sql  保存到外部指定的文件中
+@ 【start】 /path/xxx.sql 把外部（sql）文件加载到缓冲池中并运行
+
+get /path/xxx.sql 把外部文件（sql语句）加载到sqlplus的缓冲池中，然后通过run（/）来运行
+
+说明：@ 要学会，经常需要在数据库里执行脚本
+$ cd $ORACLE_HOME/rdbms/admin
+$ ls utlsampl.sql   ——>该脚本是用来初始化scott用户（用户被删除、表被删、该错等）
+
+注意：
+初始化scott用户时，确定scott用户没有连接
+
+SQL> @/u02/app/oracle/product/11.2.0/rdbms/admin/utlsampl.sql
+SQL> @ /u02/app/oracle/product/11.2.0/rdbms/admin/utlsampl
+SQL> @?/rdbms/admin/utlsampl
+
+?代表$ORACLE_HOME
+
+
+spool 命令：录屏（记录所有的操作）
+
+SPO[OL] [file_name[.ext] [CRE[ATE] | REP[LACE] | APP[END]] | OFF | OUT]
+
+SQL> spool /path/xxx.txt  将sql语句和执行结果全部输出（不管对与错）
+SQL> spool off  结束
+
+app 追加
+rep 替换
+cre 创建
+说明：如果没有关闭spool直接exit退出，则后面想再次续接就需要以追加的方式
+
+！：临时在sqlplus里执行主机命令，也可以临时退出sqlplus
+
+修改缓冲池里的sql语句：
+
+C——>change 修改替换  c/old/new/  如果new值不写就等于删除
+A——>append 追加  （只能追加在最后面）
+DEL——>删除  最小粒度是删除一行（c/old//）
+
+SQL> select
+  2        ename,jov
+  3  from
+  4        emp;
+      ename,jov
+            *
+ERROR at line 2:
+ORA-00904: "JOV": invalid identifier
+
+
+SQL> l
+  1  select
+  2	   ename,jov
+  3  from
+  4*	   emp
+SQL> 2 查看第几行
+  2*	   ename,jov
+SQL> c/jov/job
+  2*	   ename,job
+SQL> l
+  1  select
+  2	   ename,job
+  3  from
+  4*	   emp
+SQL> /
+
+SQL> 1
+  1* select ename,empon from emp
+SQL> c/empon/empno
+  1* select ename,empno from emp
+
+
+删除一列：
+SQL> 2
+  2*	   ename,job
+SQL> c/,job//
+  2*	   ename
+SQL> l
+  1  select
+  2	   ename
+  3  from
+  4*	   emp
+SQL> 
+
+追加一列：
+SQL> 2
+  2*	   ename
+SQL> a ,job
+  2*	   ename,job
+SQL> l
+  1  select
+  2	   ename,job
+  3  from
+  4*	   emp
+
+这样就不行：
+SQL> l
+  1* select ename from emp
+SQL> a ,job 
+  1* select ename from emp,job
+可以这样：
+SQL> l
+  1* select ename from emp
+SQL> c/me/me,job
+  1* select ename,job from emp
+
+del 删除一整行：
+SQL> l
+  1  select
+  2	    ename
+  3	    ,job
+  4  from
+  5	    emp
+  6*
+SQL> 3
+  3*	    ,job
+SQL> del
+SQL> l
+  1  select
+  2	    ename
+  3  from
+  4	    emp
+  5*
+SQL> 
+
+del只能删除一行就有些麻烦，那么就可以使用save先保存到一个文件中，然后通过vim修改
+但是就需要先保存然后再重新加载，那么vim能不能直接修改缓冲池？可以
+
+SQL> define _editor
+DEFINE _EDITOR	       = "ed" (CHAR)
+SQL> define _editor=vim  这样就可以将sqlplus和vim工具联系起来
+SQL> define _editor
+DEFINE _EDITOR	       = "vim" (CHAR)
+
+SQL> ed  可以直接使用vim打开缓冲池进行修改
+
+以上是临时定义，永久需要编写$ORACLE_HOME/sqlplus/admin/glogin.sql文件
+vim $ORACLE_HOME/sqlplus/admin/glogin.sql
+...
+define _editor='vim'
+
+SQL> define
+DEFINE _DATE	       = "08-FEB-17" (CHAR)
+DEFINE _CONNECT_IDENTIFIER = "ora11g" (CHAR)
+DEFINE _USER	       = "SCOTT" (CHAR)
+DEFINE _PRIVILEGE      = "" (CHAR)
+DEFINE _SQLPLUS_RELEASE = "1102000300" (CHAR)
+DEFINE _EDITOR	       = "vim" (CHAR)
+DEFINE _O_VERSION      = "Oracle Database 11g Enterprise Edition Release 11.2.0.3.0 - 64bit Production
+With the Partitioning, OLAP, Data Mining and Real Application Testing options" (CHAR)
+DEFINE _O_RELEASE      = "1102000300" (CHAR)
+DEFINE _RC	       = "0" (CHAR)
+
+错误：
+SQL> l
+  1* select * from scott.dept
+SQL> ed
+SP2-0110: Cannot create save file "afiedt.buf"
+
+ed需要创建一个缓存文件，但是不能创建，原因是当前用户没有权限：
+SQL> exit
+[oracle@oradb /]$ pwd
+/
+[oracle@oradb /]$ touch abc
+touch: cannot touch `abc': Permission denied
+
+作业：
+set serverout on|off 什么含义？
+
+控制在SQL*PLUS中的存储过程是否显示输出。OFF为禁止；ON为显示输出。size设置缓冲输出的字节数，缺省为2000，n不能哪个小于2000或大于一百万。
+
