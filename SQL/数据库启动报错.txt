@@ -1,0 +1,27 @@
+﻿数据库启动报错：
+
+[oracle@oradb ~]$ sqlplus / as sysdba
+SQL*Plus: Release 11.2.0.3.0 Production on Wed Feb 15 11:25:42 2017
+Copyright (c) 1982, 2011, Oracle.  All rights reserved.
+Connected to an idle instance.
+SQL> startup
+ORA-00845: MEMORY_TARGET not supported on this system
+SQL>
+
+原因：/dev/shm分配不足
+官档解释：
+Starting with Oracle Database 11g, the Automatic Memory Management feature requires more shared memory (/dev/shm)and file descriptors. The size of the shared memory must be at least the greater of the MEMORY_MAX_TARGET and MEMORY_TARGET parameters for each Oracle instance on the computer. If the MEMORY_MAX_TARGET parameter or the MEMORY_TARGET parameter is set to a nonzero value, and an incorrect size is assigned to the shared memory, it results in an ORA-00845 error at startup. On Linux systems, if the operating system /dev/shm mount size is too small for the Oracle system global area (SGA) and program global area (PGA), it results in an ORA-00845 error.
+
+解决：扩大/dev/shm大小
+Increase the /dev/shm mountpoint size.
+[root@oradb ~]# df -h
+Filesystem                    Size  Used Avail Use% Mounted on
+tmpfs                         936M   72K  936M   1% /dev/shm
+
+For example:
+# mount -t tmpfs shmfs -o size=2g /dev/shm	临时增加
+永久增加：
+shmfs /dev/shm tmpfs size=2g 0
+
+
+

@@ -1,0 +1,134 @@
+﻿
+DQL语句	查询语句	select
+对象：
+表（核心）、视图、物化视图、索引等对象
+
+表结构：行+列  ——> desc[ribe]	分号可省略
+表内容：	select 列名,... from 表名;	多个列用逗号“，”分割；"*" 代表所有列;一定是以分号结束；
+1、SQL> select * from emp;	查询所有列
+2、SQL> select  job,ename,ename from emp;		查询指定几列，顺序自己定义
+3、SQL> select ename,* from emp;		*和列同时出现
+select ename,* from emp
+             *
+ERROR at line 1:
+ORA-00936: missing expression
+SQL> select *,ename from emp;
+select *,ename from emp
+        *
+ERROR at line 1:
+ORA-00923: FROM keyword not found where expected
+正确打开方式：
+SQL> select ename,emp.* from emp;
+SQL> select emp.ename,emp.sal from emp;
+
+注意：
+1> 一般情况下，查询同一张表时，*和列不要一起使用，否则会报语法错误；如果需要在*前面加上表名
+2> 如果sql语句报错，星号所指位置就是错误点
+
+4、查看公司有哪些职位
+SQL> select job from emp;	职位重复
+SQL> select distinct job from emp;	  distinct关键字，去重复
+
+5、查看每个部门都有哪些职位
+SQL> select distinct deptno,job from emp;	多列去重，oracle会将job和deptno看成一列
+
+    DEPTNO JOB
+---------- ------------------
+	20 CLERK
+	30 SALESMAN
+	20 MANAGER
+	30 CLERK
+	10 PRESIDENT
+	30 MANAGER
+	10 CLERK
+	10 MANAGER
+	20 ANALYST
+
+9 rows selected.
+
+
+SQL> select deptno distinct job from emp;
+select deptno distinct job from emp
+              *
+ERROR at line 1:
+ORA-00923: FROM keyword not found where expected
+
+SQL> select deptno from emp;
+
+    DEPTNO
+----------
+	20
+....
+	10
+
+14 rows selected.
+
+SQL> select distinct job from emp;
+
+JOB
+------------------
+CLERK
+SALESMAN
+PRESIDENT
+MANAGER
+ANALYST
+
+原因：用14行和5行去匹配，oracle不知道匹配给谁；
+
+6、支持算数表达式 	加、减、乘、除
+SQL> select sal,sal+100 from emp;
+SQL> select sal,sal*12 from emp;
+SQL> select sal,sal/30 from emp;
+SQL> select sal,sal-100 from emp;
+SQL> select sal,(sal+100)/10 from emp;
+SQL> select sal,((sal+100)-10)*2 from emp;
+
+7、使用别名显示	alias
+主机：alias sqlplus='rlwrap sqlplus'
+列定义别名
+SQL> select sal,sal*12 as yearsal from emp;
+SQL> select sal,sal*12 as YEARsal from emp;
+表指定别名
+SQL> select e.sal from emp as e;
+select e.sal from emp as e
+                      *
+ERROR at line 1:
+ORA-00933: SQL command not properly ended
+
+SQL> select e.sal from emp e;
+注意：定义别名不需要加"as"关键字；列可加可不加，表不能加
+
+SQL> select sal,sal*12 yearsal from emp;
+
+SQL> select emp.sal from emp e;
+select emp.sal from emp e
+       *
+ERROR at line 1:
+ORA-00904: "EMP"."SAL": invalid identifier
+
+思考：
+1、我想查出每个人的年薪sal*12,要求别名为小写的：year_sal，怎么写？
+2、我想查出每个人的日工资sal/30,要求别名为:day sal(大小写都可以),怎么写？
+
+补充：
+SQL> select ename empno from emp;  
+//如果列与列之间没有逗号，说明后面的empno是前面列的别名，最终只显示一列
+SQL> select ename,xingming from emp;
+select ename,xingming from emp
+             *
+ERROR at line 1:
+ORA-00904: "XINGMING": invalid identifier
+//如果加了逗号，但是有一列不存在就会报错
+
+例外：
+SQL> select ename,123 from emp;
+//该语句不会报错，因为oracle里规定列名不能以数字开头，所以就会忽略掉
+
+SQL> select ename,a123 from emp;
+//只要列不以数字开头，就会优先判断是否存在，不存在就报错
+
+SQL> select ename,'a123' from emp;
+//如果想要显示加引号
+
+
+
