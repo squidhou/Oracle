@@ -1,0 +1,244 @@
+﻿sqlplus工具连接数据库方法【掌握】：
+1、sqlplus工具不需要额外安装，默认装完软件就有
+2、命令窗口
+
+方法1：交互式
+普通用户：
+$ sqlplus
+Enter user-name:scoot
+Enter password:tiger[不显示]
+$ 管理员：
+sqlplus
+Enter user-name:sys as sysdba
+Enter password:oracle[不显示]
+或者
+Enter user-name:sys
+Enter password:oracle[不显示] as sysdba
+
+方法2：
+[oracle@oradb ~]$ sqlplus scott
+Enter password:tiger【不显示】
+
+[oracle@oradb ~]$ sqlplus sys as sysdba
+Enter password:oracle[不显示]
+
+
+方法3：非交互式【密码明文不安全】
+普通用户：
+[oracle@oradb ~]$ sqlplus scott/tiger
+管理员：
+[oracle@oradb ~]$ sqlplus sys/oracle as sysdba
+
+方法4：
+[oracle@oradb ~]$ sqlplus /nolog
+SQL> connect scott/tiger
+Connected.
+或者
+SQL> conn scott
+Enter password: 
+Connected.
+
+[oracle@oradb ~]$ sqlplus /nolog
+SQL> conn sys/oracle as sysdba
+Connected.
+或者
+SQL> conn sys as sysdba
+Enter password: 
+Connected.
+
+思考：如果库里面没有的用户是否可以登录？
+[oracle@oradb ~]$ sqlplus abc/123
+ERROR:
+ORA-01017: 用户名/口令无效; 登录被拒绝
+
+但是，如果后面加一个as sysdba就可以登录了，也就是说，我可以不用账号密码就可以登录了
+[oracle@oradb ~]$ sqlplus abc/123 as sysdba 【只要不写关键字就行】
+Connected to:
+Oracle Database 11g Enterprise Edition Release 11.2.0.3.0 - 64bit Production
+With the Partitioning, OLAP, Data Mining and Real Application Testing options
+SQL> 
+
+[oracle@oradb ~]$ sqlplus / as sysdba 【没有账号密码】
+SQL*Plus: Release 11.2.0.3.0 Production on Sat Feb 4 22:02:32 2017
+Copyright (c) 1982, 2011, Oracle.  All rights reserved.
+Connected to:
+Oracle Database 11g Enterprise Edition Release 11.2.0.3.0 - 64bit Production
+With the Partitioning, OLAP, Data Mining and Real Application Testing options
+SQL> 
+
+以上登录是oracle的一种认证方式，操作系统认证；只要知道oracle用户的密码就可以直接以sys用户登录数据库而不需要密码；
+
+说明：
+Oracle对于普通账户和超级管理员（指sysdba和sysoper）的认证机制不一样，前者是通过数据字典，后者主要是通过操作系统验证和密码文件验证。因此一般提到操作系统认证或密码文件认证，针对的都是超级管理员的认证。
+
+
+操作系统认证：
+
+对于操作系统认证，只需要将该用户添加到dba（针对sysdba权限）或oper（针对sysoper权限）组中，
+就可以使用 "sqlplus  / as sysdba或者 sqlplus / as sysoper"方式登陆
+
+demo：
+useradd -G dba test
+
+能否使用操作系统身份认证，取决于$ORACLE_HOME/network/admin/sqlnet.ora中SQLNET.AUTHENTICATION_SERVICES的取值。
+
+      SQLNET.AUTHENTICATION_SERVICES = none | all | ntf(windows)
+      //sqlnet.authentication_services(认证服务)
+      none : 表示关闭操作系统认证，只能密码认证。
+      all : 操作系统认证和密码认证均可。[默认]
+      nts : 用于windows平台。
+
+
+密码文件认证：
+$ORACLE_HOME/dbs/orapw$SID文件
+
+这种方式在实际环境中较为普遍，利用的是orapwd工具创建密码文件。
+
+在密码文件认证中，有一个参数十分重要：remote_login_passwordfile，该参数有三个值，默认为exclusive
+
+none----不使用密码文件认证
+exclusive---需要密码文件认证 自己独占使用
+shared ---需要密码文件认证 不同实例dba用户可以共享密码文件
+
+密码文件的默认位置为:$ORACLE_HOME/dbs
+
+密码文件的查找顺序：orapw<sid> -->  orapw  --> Failure
+
+所以在创建密码文件时filename只能为orapw<sid>或者orapw
+
+
+补充：
+sysdba和sysoper权限区别：
+
+sysdba：拥有最高的系统权限，是管理oracle实例的，它的存在不依赖于整个数据库完全启动，只要实例启动了，他就已经存在，以sysdba身份登陆，装载数据库、打开数据库
+
+SQL>conn / as sysdba;
+SQL> show user;
+USER is "SYS"
+
+以SYSDBA登陆Oracle数据库时，有最大权限，可以启停数据库也可以访问V$对象视图等。
+
+sysoper：也是一种系统权限，只不过跟sysdba相比权限小一些
+
+SQL> conn / as sysoper
+Connected.
+SQL> show user
+USER is "PUBLIC"
+
+以sysoper登陆Oracle数据库时，可以启停数据库，备份恢复（完全恢复）数据库等，但是不可以访问V$对象视图，不能创建和删除数据库。
+
+
+EM连接数据库：
+EM ：Enterprise Manager  (企业管理器)；DC（Database Control）
+1、基于页面的形式来连接/访问数据库的
+2、需要单独安装（建库时|后期安装）
+后期安装：
+3、启动EM
+命令 emctl
+# emctl start|stop|status dbconsole
+
+[oracle@host1 ~]$ emctl start dbconsole
+Oracle Enterprise Manager 11g Database Control Release 11.2.0.4.0 
+Copyright (c) 1996, 2013 Oracle Corporation.  All rights reserved.
+https://host1:1158/em/console/aboutApplication
+Starting Oracle Enterprise Manager 11g Database Control ......... started. 
+------------------------------------------------------------------
+Logs are generated in directory /u01/app/oracle/product/11.2.0/host1_orcl/sysman/log 
+
+远程连接：需要启动监听
+$ lsnrctl start|stop|status|reload
+
+4、登录EM
+https://host1:1158/em/
+端口：1158 5500 5501（如果服务器只安装了一个em，默认1158，多个从5500开始，5501，5502一依次类推）
+
+[oracle@host1 install]$ cd $ORACLE_HOME/install
+/u01/app/oracle/product/11.2.0/install
+[oracle@host1 install]$ cat portlist.ini 
+Enterprise Manager Console HTTP 端口 (orcl) = 1158
+Enterprise Manager 代理端口 (orcl) = 3938
+
+页面显示中文：
+vim ~/.bash_profile
+export NLS_LANG="Simplified Chinese_china.ZHS16GBK"
+
+PL/SQLDEVELOPER工具连接数据库（第三方工具）:windows下可以直接安装；Linux下需要安装模拟器
+SQL-DEVELOPER（oracle自己的）
+
+客户端工具：需要自己配置
+	配置文件里定义连接哪个数据库
+服务器端：需要启动监听
+
+安装sql/developer
+1.JDK1.6安装准备
+1》下载
+从sun公司网站www.sun.com下载linux版本的jdk,我下载的版本是JDK 6 Update 7,
+地址http://java.sun.com/javase/downloads/index.jsp
+
+jdk-6u24-linux-i586-rpm.bin
+
+2》安装
+# cp jdk-6u24-linux-i586-rpm.bin /usr
+# chmod +x jdk-6u24-linux-i586-rpm.bin
+执行安装命令
+./jdk-6u24-linux-i586-rpm.bin
+
+如遇错误，可先切换至root用户下,su root，再执行安装命令
+
+安装成功会在生成/usr/java/jdk1.6.0_24目录，就是jdk的安装目录
+3》确认是否成功安装
+# java -version
+java version "1.7.0_45"
+OpenJDK Runtime Environment (rhel-2.4.3.3.el6-x86_64 u45-b15)
+OpenJDK 64-Bit Server VM (build 24.45-b08, mixed mode)
+
+如若有显示java的版本信息，则表示安装成功,
+
+
+
+2.JDK1.6安装后的配置
+安装成功后需要配置jdk环境变量
+vim /etc/profile
+....
+export JAVA_HOME=/usr/java/jdk1.6.0_24/
+export JAVA_BIN=/usr/java/jdk1.6.0_24/bin
+export PATH=$PATH:$JAVA_HOME/bin
+export CLASSPATH=./:/jdk1.6.0_24/lib:$JAVA_HOME/jre/lib
+
+
+3. 安装JDK
+rpm -Uhv jdk-6u24-linux-i586.rpm 
+安装在/usr/java/jdk1.6.0_24
+
+4. 安装sql-developer
+
+rpm -Uhv sqldeveloper-2.1.1.64.45-1.noarch.rpm
+
+安装在/opt/sqldeveloper
+
+5. 启动sql-developer
+
+虽然在程序菜单中有sql-developer的图标，但单击并不能启动，估计是没有配置jdk的路径。所以，只能用命令行启动。
+
+./sqldeveloper.sh 出现
+
+Oracle SQL Developer
+
+Copyright (c) 2008, Oracle. All rights reserved. 
+
+
+
+Type the full pathname of a J2SE installation (or Ctrl-C to quit), the path will be stored in ~/.sqldeveloper/jdk
+
+可能出现的错误：缺少32位的安装包
+# yum provides libXext.so.6
+# yum -y install libXext-1.3.1-2.el6.i686
+# ldconfig
+# yum provides libXtst.so.6
+# yum -y install libXtst.so.6
+# ldconfig 
+
+解决完后，看到sqldeveloper的启动图面。 
+
+
+
