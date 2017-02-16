@@ -1,10 +1,35 @@
-﻿
-DQL语句	查询语句	select
+SQL:结构化查询语言（Structure Query Language）
+
+分类：
+  DQL：数据查询语言（select）
+  DDL：数据定义语言 
+		create 创建对象（表/索引）
+		drop 删除对象
+		alter 修改对象
+		truncate 清空表里的数据
+		rename	重命名
+		comment	描述说明
+  DML：数据操作语言
+		insert	插入数据
+		update	修改/更新数据
+		delete	删除数据
+		引入“事务概念”
+  DCL：数据控制语言
+		grant	授权
+		revoke	回收
+  TCL：事务控制语言
+		commit	提交/确认
+		rollback  撤销/取消
+
+《DQL语句》  
+查询语句	select
 对象：
 表（核心）、视图、物化视图、索引等对象
 
 表结构：行+列  ——> desc[ribe]	分号可省略
-表内容：	select 列名,... from 表名;	多个列用逗号“，”分割；"*" 代表所有列;一定是以分号结束；
+表内容：	select 列名,... from 表名;	select是对“列”的过滤；多个列用逗号“，”分割；"*" 代表所有列;一定是以分号结束；不加分号可以执行的时sqlplus工具自带的命令
+
+
 1、SQL> select * from emp;	查询所有列
 2、SQL> select  job,ename,ename from emp;		查询指定几列，顺序自己定义
 3、SQL> select ename,* from emp;		*和列同时出现
@@ -108,7 +133,9 @@ ORA-00904: "EMP"."SAL": invalid identifier
 
 思考：
 1、我想查出每个人的年薪sal*12,要求别名为小写的：year_sal，怎么写？
+SQL> select sal,sal*12 "year_sal" from emp;
 2、我想查出每个人的日工资sal/30,要求别名为:day sal(大小写都可以),怎么写？
+SQL> select sal,sal/30 "day sal" from emp;
 
 补充：
 SQL> select ename empno from emp;  
@@ -129,6 +156,125 @@ SQL> select ename,a123 from emp;
 
 SQL> select ename,'a123' from emp;
 //如果想要显示加引号
+
+总结：
+  一般情况下我们不直接使用*查询所有列，而是查询指定某列或某几列，默认情况下select返回所有行；但是我们大部分情况下不需要查询所有行，而是需要根据条件对行进行过滤；
+那么单纯的select就不能满足，而是需要再加一个条件过滤语句，where。
+
+where子句：根据条件对行进行过滤
+select column1,.. from table where column...；
+
+1、等值和不等值运算（column）
+列是有类型的：数值、字符、日期...
+SQL> select ename,sal from emp where sal=3000;
+	
+SQL> select ename,sal from emp where ename=scott;
+select ename,sal from emp where ename=scott
+                                      *
+ERROR at line 1:
+ORA-00904: "SCOTT": invalid identifier
+
+SQL> desc emp
+ENAME	VARCHAR2(10)	字符
+SAL	NUMBER(7,2)	数值
+
+原因：如果列的类型时字符类型的话直接赋值，oracle会当作数字处理，所以会报错；所以非数值类型的列做等值或者不等值运算需要加单引号''
+
+SQL> select ename,sal from emp where ename='scott';	不报错，但是没有结果；跟实际不符
+no rows selected
+
+原因：加上'单引号'之后，就严格区分大小写；表里面ename列都是大写，所以引号里需要大写才能匹配
+SQL> select ename,sal from emp where ename='SCOTT';
+
+ENAME	   SAL
+------- ------
+SCOTT	  3000
+
+
+SQL> select ename from emp where hiredate=28-SEP-81;
+select ename from emp where hiredate=28-SEP-81
+                                        *
+ERROR at line 1:
+ORA-00904: "SEP": invalid identifier
+
+加上单引号：
+SQL> select ename,hiredate from emp where hiredate='28-SEP-81';
+
+ENAME	HIREDATE
+------- ------------
+MARTIN	28-SEP-81
+
+思考：
+1、加上单引号后oracle会当作字符来处理，但是hiredate是日期类型，并且没有报错，也就是说oracle会自动转换，那么是怎么转换的？
+为什么不加单引号就不转换？  【后续会讲类型转换】
+
+2、28-SEP-81日期格式美国人的习惯，对于我们而言更习惯yyyy-mm-dd/yyyymmdd,那么如果直接按照我们的习惯赋值可以吗？
+
+
+SQL> select ename,hiredate from emp where hiredate=19810928;
+select ename,hiredate from emp where hiredate=19810928
+                                            *
+ERROR at line 1:
+ORA-00932: inconsistent datatypes: expected DATE got NUMBER
+
+SQL> select ename,hiredate from emp where hiredate='19810928';
+select ename,hiredate from emp where hiredate='19810928'
+                                              *
+ERROR at line 1:
+ORA-01861: literal does not match format string
+
+原因：所查日期格式和hiredate日期不一致，默认情况下日期格式需要和hiredate一样
+
+SQL> select sysdate from dual;
+
+SYSDATE
+------------
+16-FEB-17
+
+如果想让其以其他格式显示，可以修改当前session日期的格式
+
+SQL> alter session set nls_date_format='yyyy-mm-dd';
+
+Session altered.
+
+SQL> select ename,hiredate from emp where hiredate='19810928';
+
+ENAME	HIREDATE
+------- ----------
+MARTIN	1981-09-28
+
+SQL> alter session set nls_date_format='yyyy/mm/dd';
+
+Session altered.
+
+SQL> select ename,hiredate from emp where hiredate='19810928';
+
+ENAME	HIREDATE
+------- ----------
+MARTIN	1981/09/28
+
+
+SQL> alter session set nls_date_format='yyyymmdd';
+
+Session altered.
+
+SQL> select ename,hiredate from emp where hiredate='19810928';
+
+ENAME	HIREDATE
+------- --------
+MARTIN	19810928
+
+
+SQL> select ename,hiredate from emp where hiredate=19810928;
+select ename,hiredate from emp where hiredate=19810928
+                                             *
+ERROR at line 1:
+ORA-00932: inconsistent datatypes: expected DATE got NUMBER
+
+思考：为什么数字不能直接转换
+
+
+
 
 
 
