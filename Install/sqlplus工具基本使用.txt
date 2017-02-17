@@ -1,4 +1,4 @@
-sqlplus 工具使用：
+﻿sqlplus 工具使用：
 寻求帮助：
 SQL> help index   
 
@@ -35,9 +35,30 @@ SQL> help set
  SET system_variable value
 
 
-
+SQLP[ROMPT] {SQL>|text	设置提示符
 SET PAGES[IZE] {14|n}   设置多少行一页
 SET LIN[ESIZE] {80|n}	设置终端宽度
+
+临时修改提示符：
+SQL> set sqlp "_user'@'_connect_identifier>"
+SYS@ora11g>
+永久修改：
+[oracle@oradb ~]$ vim /u02/app/oracle/product/11.2.0/sqlplus/admin/glogin.sql
+set sqlp _user'@'_connect_identifier>
+
+其中，_user和_connect_identifier是sqlplus默认变量，分别代表当前登陆用户名和连接串名[sid] 
+
+SYS@ora11g>def[ine]
+DEFINE _DATE	       = "17-FEB-17" (CHAR)
+DEFINE _CONNECT_IDENTIFIER = "ora11g" (CHAR)
+DEFINE _USER	       = "SYS" (CHAR)
+DEFINE _PRIVILEGE      = "AS SYSDBA" (CHAR)
+DEFINE _SQLPLUS_RELEASE = "1102000300" (CHAR)
+DEFINE _EDITOR	       = "vim" (CHAR)
+DEFINE _O_VERSION      = "Oracle Database 11g Enterprise Edition Release 11.2.0.3.0 - 64bit Production
+With the Partitioning, OLAP, Data Mining and Real Application Testing options" (CHAR)
+DEFINE _O_RELEASE      = "1102000300" (CHAR)
+
 
 COL[UMN] [{column | expr} [option ...] ]
 col 列名 for a12 【字符或日期】
@@ -90,6 +111,7 @@ SQL> @ /u02/app/oracle/product/11.2.0/rdbms/admin/utlsampl
 SQL> @?/rdbms/admin/utlsampl
 
 ?代表$ORACLE_HOME
+
 
 
 spool 命令：录屏（记录所有的操作）
@@ -238,5 +260,11 @@ SQL> exit
 [oracle@oradb /]$ touch abc
 touch: cannot touch `abc': Permission denied
 
+作业：
+set serverout on|off 什么含义？
+
+控制在SQL*PLUS中的存储过程是否显示输出。OFF为禁止；ON为显示输出。size设置缓冲输出的字节数，缺省为2000，n不能哪个小于2000或大于一百万。
+SQL> SET SERVEROUT[PUT] {ON|OFF}
+在编写存储过程时，我们有时会用dbms_output.put_line将必要的信息输出，以便对存储过程进行调试，只有将serveroutput变量设为on后，信息才能显示在屏幕上。
 
 
