@@ -21,6 +21,9 @@ SQL:结构化查询语言（Structure Query Language）
 		commit	提交/确认
 		rollback  撤销/取消
 
+
+
+
 《DQL语句》  
 查询语句	select
 对象：
@@ -121,7 +124,7 @@ ERROR at line 1:
 ORA-00933: SQL command not properly ended
 
 SQL> select e.sal from emp e;
-注意：定义别名不需要加"as"关键字；列可加可不加，表不能加
+注意：定义别名不需要加"as"关键字；列可加可不加，表不加
 
 SQL> select sal,sal*12 yearsal from emp;
 
@@ -136,6 +139,8 @@ ORA-00904: "EMP"."SAL": invalid identifier
 SQL> select sal,sal*12 "year_sal" from emp;
 2、我想查出每个人的日工资sal/30,要求别名为:day sal(大小写都可以),怎么写？
 SQL> select sal,sal/30 "day sal" from emp;
+
+注意：如果别名中有特殊字符，那么需要用双引号""引起来。
 
 补充：
 SQL> select ename empno from emp;  
@@ -161,13 +166,25 @@ SQL> select ename,'a123' from emp;
   一般情况下我们不直接使用*查询所有列，而是查询指定某列或某几列，默认情况下select返回所有行；但是我们大部分情况下不需要查询所有行，而是需要根据条件对行进行过滤；
 那么单纯的select就不能满足，而是需要再加一个条件过滤语句，where。
 
-where子句：根据条件对行进行过滤
+如何书写DQL_SQL
+	大小写不敏感,但单引和双引内的大小写是敏感的.
+	关键字不能缩写select不能写成sel
+	字符串用单引 比如 ename='SEKER'
+	列的别名含特殊字符用双引
+	可跨行,但不要将关键字和单引的内容跨行.
+	跨行是为了可读性,一般我们都把select子句和from子句分行写.	
+
+
+where子句：根据条件对行进行过滤（等值/不等值）
 select column1,.. from table where column...；
 
-1、等值和不等值运算（column）
+1、等值运算（column）
 列是有类型的：数值、字符、日期...
+
+数值类型：
 SQL> select ename,sal from emp where sal=3000;
-	
+
+字符类型：	
 SQL> select ename,sal from emp where ename=scott;
 select ename,sal from emp where ename=scott
                                       *
@@ -190,7 +207,7 @@ ENAME	   SAL
 ------- ------
 SCOTT	  3000
 
-
+日期类型：
 SQL> select ename from emp where hiredate=28-SEP-81;
 select ename from emp where hiredate=28-SEP-81
                                         *
@@ -225,11 +242,20 @@ ORA-01861: literal does not match format string
 
 原因：所查日期格式和hiredate日期不一致，默认情况下日期格式需要和hiredate一样
 
-SQL> select sysdate from dual;
+SQL> select sysdate from dual;		//查看当前系统日期格式
 
 SYSDATE
 ------------
 16-FEB-17
+引入：
+虚表（dual）
+	虚表是oracle自动创建的一张表，可以理解为是一张假想表，目的是为了使select语义完成，借助虚表 我们可以完成很多事
+eg：
+select user from dual;	//查看当前用户
+select sysdate from dual;		//查看当前时间(OS时间)
+select 9+8 from dual;	//算数运算
+select dbms_random.random from dual;	//获取随机数
+
 
 如果想让其以其他格式显示，可以修改当前session日期的格式
 
@@ -271,10 +297,192 @@ select ename,hiredate from emp where hiredate=19810928
 ERROR at line 1:
 ORA-00932: inconsistent datatypes: expected DATE got NUMBER
 
-思考：为什么数字不能直接转换
+思考：为什么数字类型不能直接转换成日期格式，而字符类型可以直接转换成日期？后面讲类型转换说
+
+2、不等值运算
+a.	!=	<>	//查看所有人的工资和姓名，除了scott
+SQL> select ename,sal from emp where ename='SCOTT';
+SQL> select ename,sal from emp where ename!='SCOTT';
+SQL> select ename,sal from emp where ename<>'SCOTT';
+
+SQL> select ename,sal from emp where sal<3000 and sal>2000;
+
+b.	>	<		
+SQL> select ename,sal from emp where sal>2000;
+SQL> select ename,sal from emp where sal<3000;
+SQL> select ename,sal from emp where sal<3000 and sal>2000;	//查看工资在2000~3000之间(开区间)
+注：多个条件同时成立，用and
 
 
+c.	>=	<=	(between ... and ...)
+SQL> select ename,sal from emp where sal<=3000 and sal>=2000;//查看工资在2000~3000之间的（闭区间）
+SQL> select ename,sal from emp where sal between 2000 and 3000;
+SQL> select ename,sal from emp where sal between 3000 and 2000;
+no rows selected
+注：顺序问题，小值在前大值在后
 
+d.	and	or（in）
 
+SQL> select ename,deptno from emp where deptno=10;
+SQL> select ename,deptno from emp where deptno=20;
+SQL> select ename,deptno from emp where deptno=20 and deptno=10;
+no rows selected
 
+SQL> select ename,deptno from emp where deptno=20 or deptno=10;
+SQL> select ename,deptno from emp where deptno=40 or deptno=10;
+SQL> select ename,deptno from emp where deptno='a' or deptno=10;
+select ename,deptno from emp where deptno='a' or deptno=10
+                                          *
+ERROR at line 1:
+ORA-01722: invalid number
+说明：and代表两个条件同时成立；or代表两个条件只要任意一个成立即可，但是前提是语法或者类型要对
 
+SQL> select ename,deptno from emp where deptno in (10,20);
+SQL> select ename,sal from emp where sal in (2000,3000);
+SQL> select ename,sal from emp where sal=2000 or sal=3000;
+
+e.	not in	排除操作（取反）
+SQL> select ename,deptno from emp where deptno not in (10,20);
+SQL> select ename,deptno from emp where deptno <>10 and deptno<>20;
+
+SQL> select ename,deptno from emp where deptno in (10,20);
+SQL> select ename,deptno from emp where deptno=10 or deptno=20;
+
+f.	null值（空值）
+SQL> select ename,sal,comm from emp where comm='';
+no rows selected
+
+SQL> select ename,sal,comm from emp where comm=' ';
+select ename,sal,comm from emp where comm=' '
+                                          *
+ERROR at line 1:
+ORA-01722: invalid number
+
+SQL> select ename,sal,comm from emp where comm=null;
+no rows selected
+
+SQL> select ename,sal,comm from emp where comm<0;
+no rows selected
+注意：
+1、null值oracle会当成无穷大，那么就不能用等号“=”来衡量；
+2、null值不等于0
+
+SQL> select ename,sal,comm from emp where comm is null;
+SQL> select ename,sal,comm from emp where comm is not null;
+
+思考：
+	1、算出每个人的最终工资（基本工资+提成），以下sql语句是否正确？为什么？
+select sal+comm,ename from emp; 
+
+不正确，因为没有提成的人最后没有最终工资了，因为没有提成的人的comm列的值不是0而是null（无穷大），所以数字+无穷大最终的结果也是无穷大（null）；怎么处理？后续会学到一个函数，NVL/NVL2
+
+	2、为什么not in返回结果不是14-1=13行，而是0行？
+SQL> select ename,sal,comm from emp where comm in (500,'');
+ENAME			    SAL       COMM
+-------------------- ---------- ----------
+WARD			   1250        500
+
+SQL> select ename,sal,comm from emp where comm not in (500,'');
+no rows selected
+SQL>select ename,sal,comm from emp where comm<>500 and comm<>'';
+
+因为not in 里面的条件是and运算，也就是两个条件必须同时成立才有结果；而comm<>''是永远不成立的，所以没有结果。
+
+Like子句：模糊匹配
+通配符：
+%：匹配0个或者多个任意字符
+_：匹配单个字符
+demo1：
+SCOTT@ora11g>select ename from emp where ename like '%S%';
+SCOTT@ora11g>select ename from emp where ename like 'S%';
+SCOTT@ora11g>select ename from emp where ename like '%S';
+---NOT Like  取反
+SCOTT@ora11g>select ename from emp where ename not like '%S%';
+SCOTT@ora11g>select ename from emp where ename not like 'S%';
+SCOTT@ora11g>select ename from emp where ename not like '%S';
+
+SCOTT@ora11g>select ename from emp where ename like '_O%';
+SCOTT@ora11g>select ename from emp where ename like '__O%';
+思考：
+1、身份证号码42[省]09[地市]82[县区]19801010[出生年月日]1234[顺序号]，如果我要查找80年出生的人，前面是不是需要写8个"_"?
+2、有时候我们写名字不规范，ZhangSan/zhang san 等，我们不知道大写还是小写，怎么查找？
+结论：
+实际中，我们现有的查询是不能满足的，我们必须借助一些函数来查询。
+
+demo2：
+$ cat t_test1.sql
+drop table test1 purge;
+create table test1 (ename varchar2(10),sal number);
+insert into test1 values('A_B',800);
+insert into test1 values('AC_B',1050);
+insert into test1 values('AD',1500);
+insert into test1 values('A_C',1000);
+insert into test1 values('A_B_D',1200);
+insert into test1 values('ABC',1900);
+commit;
+
+查询以A_开头的人名：
+
+SCOTT@ora11g>select * from test1 where ename like 'A_%';	//全部查出来，不符合要求
+SCOTT@ora11g>select * from test1 where ename like 'A\_%';	//反斜杠转义，没有结果，说明oracle不知道“\”是转义符
+no rows selected
+//escape关键字，指定转义符
+SCOTT@ora11g>select * from test1 where ename like 'A\_%' escape '\';
+SCOTT@ora11g>select * from test1 where ename like 'A#_%' escape '#';
+SCOTT@ora11g>select * from test1 where ename like 'Ao_%' escape 'o';
+
+问题：
+1、SCOTT@ora11g>select * from test1 where ename like 'A_%'; 	//该语句查询什么？【匹配以A开头，并且A后面至少要有1个字符】
+2、如果我定义的转义符正好是我匹配的一个关键字，结果如何？
+SCOTT@ora11g>select * from test1 where ename like 'AA_%' escape 'A';		【匹配以A开头，并且A后面至少要有1个字符】
+
+Order by子句：排序【永远最后】
+升序：asc	
+降序：desc
+
+demo:
+SCOTT@ora11g>select ename,sal from emp order by sal asc;
+SCOTT@ora11g>select ename,sal from emp order by sal desc;
+//查询10号部门的员工工资按降序排列
+SCOTT@ora11g>select ename,sal from emp order by sal desc where deptno=10;
+select ename,sal from emp order by sal desc where deptno=10
+                                            *
+ERROR at line 1:
+ORA-00933: SQL command not properly ended
+
+SCOTT@ora11g>select ename,sal from emp where deptno=10 order by sal desc;
+//算数表达式排序
+SCOTT@ora11g>select ename,sal+100 from emp order by sal+100 asc;
+//别名排序
+SCOTT@ora11g>select ename,sal*12 year from emp order by year asc;
+//位置排序
+SCOTT@ora11g>select ename,sal,job,deptno from emp order by 2 desc;
+SCOTT@ora11g>select ename,sal,job,deptno from emp order by 5 desc;
+select ename,sal,job,deptno from emp order by 5 desc
+                                              *
+ERROR at line 1:
+ORA-01785: ORDER BY item must be the number of a SELECT-list expression
+注意：位置排序不能超过select后面的列的个数
+
+//隐式排序【明确指定按哪一列排序，select后面可以没有，只要表中有即可】
+SCOTT@ora11g>select ename,sal,deptno from emp order by deptno;
+SCOTT@ora11g>select ename,sal 		from emp order by deptno;
+SCOTT@ora11g>select ename,sal from emp order by 3;
+select ename,sal from emp order by 3
+                                   *
+ERROR at line 1:
+ORA-01785: ORDER BY item must be the number of a SELECT-list expression
+
+//null值（空值）排序
+查找提成最多的人
+SCOTT@ora11g>select ename,sal,comm from emp order by comm desc;	//结果不对
+SCOTT@ora11g>select ename,sal,comm from emp order by comm asc;
+comm列有null值，null代表无穷大，降序排列null值在最上面；升序排列null值在最下面
+--nulls first/last
+SCOTT@ora11g>select ename,sal,comm from emp order by comm desc nulls last;  //空值最后排
+SCOTT@ora11g>select ename,sal,comm from emp order by comm asc nulls first;
+总结：
+select ... from ...
+select ... from ... where ... 
+select ... from ... order by ...
+select ... from ... where ... order by ...
