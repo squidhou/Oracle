@@ -162,6 +162,34 @@ SQL> select ename,a123 from emp;
 SQL> select ename,'a123' from emp;
 //如果想要显示加引号
 
+8、拼接 ||
+
+SCOTT@ora11g>select ename || '''s job is ' || job abc from emp;
+SCOTT@ora11g>select ename || '''s job is ' || job || ' ;salary is ' || sal abc from emp;
+SCOTT@ora11g>select ename ||' , '||job "Employee and Title" from scott.emp;
+扩展：
+SYS@ora11g>select username,account_status from dba_users where username='SCOTT';
+SYS@ora11g>alter user scott account lock;
+SYS@ora11g>alter user scott account unlock;
+如果很多用户都需要解锁或者锁住，怎么批量完成？
+SYS@ora11g>spool /tmp/1.sql
+SYS@ora11g>select 'alter user '||USERNAME||' account lock;' from dba_users where USERNAME='SCOTT';
+
+'ALTERUSER'||USERNAME||'ACCOUNTLOCK;'
+--------------------------------------------------------------------------------------------------------------
+alter user SCOTT account lock;
+
+SYS@ora11g>spool off
+SYS@ora11g>@/tmp/1.sql
+User altered.
+
+SYS@ora11g>select username,account_status from dba_users where username='SCOTT';
+USERNAME						     ACCOUNT_STATUS
+----------------------------				   -----------------------
+SCOTT							     LOCKED
+//重新设置密码
+SYS@ora11g>alter user scott identified by tiger;
+
 总结：
   一般情况下我们不直接使用*查询所有列，而是查询指定某列或某几列，默认情况下select返回所有行；但是我们大部分情况下不需要查询所有行，而是需要根据条件对行进行过滤；
 那么单纯的select就不能满足，而是需要再加一个条件过滤语句，where。
